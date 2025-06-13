@@ -24,8 +24,6 @@ export default function App() {
     const [initialTransactionType, setInitialTransactionType] = useState('Saída');
 
     const loadData = useCallback(async () => {
-        // *** LÓGICA DE LOADING CORRIGIDA ***
-        // Apenas define como true no início do carregamento.
         setLoading(true); 
         try {
             await api.getHealth();
@@ -35,12 +33,10 @@ export default function App() {
         } catch (error) {
             alert(`ERRO: ${error.message}\nVerifique se o backend está a correr na porta 3000.`);
         } finally {
-            // Garante que o loading termina, mesmo que haja um erro.
             setLoading(false);
         }
-    }, []); // A dependência vazia garante que só é recriada se necessário.
+    }, []);
 
-    // Carrega os dados apenas uma vez quando o componente é montado.
     useEffect(() => {
         loadData();
     }, [loadData]);
@@ -60,7 +56,7 @@ export default function App() {
             if (itemData.id) await api.updateItem(itemData.id, itemData);
             else await api.postItem(itemData);
             setShowItemModal(false);
-            await loadData(); // Recarrega os dados após a alteração
+            await loadData();
         } catch (error) {
             alert(`Erro ao salvar item: ${error.message}`);
         }
@@ -70,7 +66,7 @@ export default function App() {
         try {
             await api.postTransaction(transactionData);
             setShowTransactionModal(false);
-            await loadData(); // Recarrega os dados após a alteração
+            await loadData();
         } catch(error) {
             alert(`Erro ao salvar movimentação: ${error.message}`);
         }
@@ -98,6 +94,9 @@ export default function App() {
             <main className="mt-6">{renderTabContent()}</main>
 
             <ItemModal show={showItemModal} onClose={() => setShowItemModal(false)} itemToEdit={currentItem} onSave={handleSaveItem} />
+            
+            {/* *** CORREÇÃO APLICADA AQUI *** */}
+            {/* A propriedade `stock={stock}` foi adicionada para passar os dados de stock ao modal. */}
             <TransactionModal 
                 show={showTransactionModal} 
                 onClose={() => setShowTransactionModal(false)} 

@@ -19,6 +19,7 @@ const dbConfig = {
 app.use(cors());
 app.use(express.json());
 
+// Função auxiliar (sem alterações)
 async function executeQuery(res, sql, params = []) {
     let connection;
     try {
@@ -36,6 +37,7 @@ async function executeQuery(res, sql, params = []) {
     }
 }
 
+
 // --- ROTAS DA API ---
 
 app.get('/api/health', async (req, res) => {
@@ -49,37 +51,38 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
+// *** ROTA DE STOCK CORRIGIDA ***
 app.get('/api/stock', async (req, res) => {
     const items = await executeQuery(res, 'SELECT * FROM items ORDER BY description ASC');
     if (!items) return;
-
-    // *** CORREÇÃO APLICADA AQUI ***
-    // Garante que a coluna 'sizes' (que vem como string) seja convertida para um array.
+    
+    // Converte a string JSON de tamanhos para um array
     items.forEach(item => {
         if (item.sizes && typeof item.sizes === 'string') {
             try {
                 item.sizes = JSON.parse(item.sizes);
             } catch (e) {
-                console.error(`Erro ao fazer parse dos tamanhos para o item ${item.id}:`, item.sizes);
-                item.sizes = []; // Define como um array vazio em caso de erro.
+                item.sizes = [];
             }
         } else if (!item.sizes) {
-            item.sizes = []; // Garante que é sempre um array
+            item.sizes = [];
         }
     });
-    
+
     const allTransactions = await executeQuery(res, 'SELECT * FROM transactions');
     if(!allTransactions) return;
 
     const stock = items.map(item => {
-        const totalIn = allTransactions.filter(t => t.item_id === item.id && t.type === 'Entrada').reduce((sum, t) => sum + t.quantity, 0);
-        const totalOut = allTransactions.filter(t => t.item_id === item.id && t.type === 'Saída').reduce((sum, t) => sum + t.quantity, 0);
-
+        const itemTransactions = allTransactions.filter(t => t.item_id === item.id);
+        const totalIn = itemTransactions.filter(t => t.type === 'Entrada').reduce((sum, t) => sum + t.quantity, 0);
+        const totalOut = itemTransactions.filter(t => t.type === 'Saída').reduce((sum, t) => sum + t.quantity, 0);
+        
+        // *** LÓGICA DE CÁLCULO DE STOCK POR TAMANHO CORRIGIDA ***
         const stockBySize = {};
         if (item.sizes.length > 0) {
             item.sizes.forEach(size => {
-                const sizeIn = allTransactions.filter(t => t.item_id === item.id && t.type === 'Entrada' && t.size === size).reduce((s, t) => s + t.quantity, 0);
-                const sizeOut = allTransactions.filter(t => t.item_id === item.id && t.type === 'Saída' && t.size === size).reduce((s, t) => s + t.quantity, 0);
+                const sizeIn = itemTransactions.filter(t => t.type === 'Entrada' && t.size === size).reduce((s, t) => s + t.quantity, 0);
+                const sizeOut = itemTransactions.filter(t => t.type === 'Saída' && t.size === size).reduce((s, t) => s + t.quantity, 0);
                 stockBySize[size] = sizeIn - sizeOut;
             });
         }
@@ -102,8 +105,33 @@ app.get('/api/stock', async (req, res) => {
     res.json(stock);
 });
 
+// Rota para obter as entradas disponíveis para um item (necessária para o formulário de saída)
+app.get('/api/stock-entries/:itemId', async (req, res) => {
+    const { itemId } = req.params;
+    const sql = `
+        SELECT 
+            t.transaction_id as entry_transaction_id,
+            t.quantity,
+            t.transaction_date,
+            t.purchase_order_id,
+            t.size,
+            (t.quantity - COALESCE((
+                SELECT SUM(t_out.quantity) 
+                FROM transactions t_out 
+                WHERE t_out.type = 'Saída' AND t_out.entry_transaction_id = t.transaction_id
+            ), 0)) as remaining
+        FROM transactions t
+        WHERE t.type = 'Entrada' AND t.item_id = ?
+        HAVING remaining > 0
+    `;
+    const entries = await executeQuery(res, sql, [itemId]);
+    if (entries) {
+        res.json(entries);
+    }
+});
 
-// ... (O resto do ficheiro permanece o mesmo. Apenas a rota /api/stock foi alterada.)
+
+// ... (O resto do ficheiro server.js permanece o mesmo) ...
 // Rota para o Dashboard Financeiro.
 app.get('/api/financial-summary', async (req, res) => {
     const { dateStart, dateEnd, op } = req.query;
@@ -270,3 +298,4 @@ async function startServer() {
 }
 
 startServer();
+
