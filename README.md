@@ -78,7 +78,7 @@ Siga os passos abaixo para executar o projeto localmente:
 
 1.  **Clone o repositório:**
     ```bash
-    git clone [https://URL-DO-SEU-REPOSITORIO.git](https://URL-DO-SEU-REPOSITORIO.git)
+    git clone https://github.com/Grupo-NOVAES/EPI-STOCK
     cd epi-stock
     ```
 
