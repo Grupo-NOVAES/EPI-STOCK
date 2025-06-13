@@ -44,7 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (elements.forms.historyFilter) elements.forms.historyFilter.reset();
             loadHistory(); 
         });
-        // *** EVENTO ATUALIZADO ***
+        
+        // *** NOVO EVENT LISTENER ***
+        const reportForm = document.getElementById('report-form');
+        addSafeListener(reportForm, 'submit', handleReportSubmit);
+        
         addSafeListener(elements.fields.transactionTypeSelect, 'change', handleTransactionTypeChange);
         addSafeListener(elements.containers.stock, 'click', handleStockContainerClick);
         addSafeListener(elements.containers.items, 'click', (e) => handleEditItemClick(e.target));
@@ -122,11 +126,32 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (tabId === 'financial') loadFinancialData();
     }
+    
+    // *** NOVA FUNÇÃO PARA GERAR RELATÓRIO ***
+    function handleReportSubmit(event) {
+        event.preventDefault();
+        const form = event.target;
+        const formData = new FormData(form);
+        const filters = Object.fromEntries(formData.entries());
+
+        const params = new URLSearchParams();
+        params.append('dateStart', filters.dateStart);
+        params.append('dateEnd', filters.dateEnd);
+        if (filters.type !== 'Ambos') {
+            params.append('type', filters.type);
+        }
+        
+        // A forma mais simples de iniciar um download é construir a URL e redirecionar para ela.
+        // O navegador cuidará do download por causa dos headers enviados pelo servidor.
+        const reportUrl = `/api/report?${params.toString()}`;
+        window.location.href = reportUrl;
+    }
+
 
     function handleOpenTransactionModal() {
         if (elements.forms.transaction) elements.forms.transaction.reset();
         ui.toggleModal('transaction', true);
-        handleTransactionTypeChange(); // Define o estado inicial do formulário
+        handleTransactionTypeChange();
     }
 
     function handleOpenItemModal() {
@@ -157,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleEditItemClick(target) {
         const button = target.closest('.edit-item-btn');
         if (!button) return;
-        const itemId = parseInt(button.dataset.id, 10); // ID agora é número
+        const itemId = parseInt(button.dataset.id, 10);
         const itemToEdit = state.items.find(item => item.id === itemId);
         if (itemToEdit) {
             ui.populateItemForm(itemToEdit);
@@ -176,17 +201,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { alert(`Erro ao salvar: ${error.message}`); }
     }
 
-    // *** FUNÇÃO ATUALIZADA ***
     async function handleItemSubmit(event) {
         event.preventDefault();
         const formData = new FormData(elements.forms.item);
         const data = Object.fromEntries(formData.entries());
         const itemId = data.hiddenId;
-
         try {
-            if (itemId) { // Se tem hiddenId, estamos editando
+            if (itemId) {
                 await api.updateItem(itemId, data);
-            } else { // Senão, é um item novo
+            } else {
                 await api.postItem(data);
             }
             ui.toggleModal('item', false);
@@ -194,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) { alert(`Erro ao salvar item: ${error.message}`); }
     }
 
-    // *** FUNÇÃO ATUALIZADA ***
     function handleTransactionTypeChange() {
         if (!elements.fields.transactionTypeSelect) return;
         const isEntrada = elements.fields.transactionTypeSelect.value === 'Entrada';
@@ -202,24 +224,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const recipientInput = document.getElementById('recipient');
         const opInput = document.getElementById('op_number');
 
-        // Alterna a visibilidade dos campos
         elements.fields.priceWrapper?.classList.toggle('hidden', !isEntrada);
         elements.fields.recipientWrapper?.classList.toggle('hidden', !isEntrada);
         elements.fields.opWrapper?.classList.toggle('hidden', isEntrada);
         
-        // Ajusta o atributo 'required' e limpa valores para evitar enviar dados errados
         if (isEntrada) {
             if (recipientInput) recipientInput.required = true;
             if (opInput) {
                 opInput.required = false;
                 opInput.value = '';
             }
-        } else { // Caso 'Saída'
+        } else {
             if (recipientInput) {
                 recipientInput.required = false;
                 recipientInput.value = '';
             }
-            if (opInput) opInput.required = false; // OP é opcional
+            if (opInput) opInput.required = false;
         }
     }
 
