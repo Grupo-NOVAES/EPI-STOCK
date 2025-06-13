@@ -1,12 +1,12 @@
 {
-  "name": "epi-stock-control",
+  "name": "backend",
   "version": "1.0.1",
-  "description": "Sistema de controle de estoque de EPIs",
+  "description": "Servidor para o sistema de controlo de stock de EPIs",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
-    "db:init": "node db_init.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "db:init": "node db_init.js"
   },
   "keywords": [
     "epi",

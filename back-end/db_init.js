@@ -1,20 +1,15 @@
-// db_init.js
-// Descrição: Script para inicializar o banco de dados.
-// Este script irá:
-// 1. Conectar-se ao servidor MySQL.
-// 2. Criar o banco de dados 'epi_stock_control' se ele não existir.
-// 3. Criar as tabelas 'items' e 'transactions'.
-// 4. Inserir os dados de exemplo na tabela 'items'.
+// backend/db_init.js
+// Descrição: Script para inicializar o banco de dados com a estrutura mais recente,
+// incluindo a funcionalidade de tamanhos.
 
-const mysql = require('mysql2/promise');
+import mysql from 'mysql2/promise';
 
 // --- Configuração do Banco de Dados ---
-// IMPORTANTE: Use as mesmas credenciais do seu arquivo server.js.
-// Deixe 'database' como nulo para conectar ao servidor MySQL antes de criar o banco de dados.
+// IMPORTANTE: Use as mesmas credenciais do seu ficheiro server.js.
 const dbConfig = {
     host: 'localhost',
-    user: 'root',      // <-- MUDE AQUI para o seu usuário
-    password: '177619',    // <-- MUDE AQUI para a sua senha
+    user: 'root',      // <-- MUDE AQUI para o seu utilizador
+    password: '177619',    // <-- MUDE AQUI para a sua palavra-passe
     charset: 'utf8mb4',
 };
 
@@ -29,6 +24,7 @@ CREATE TABLE IF NOT EXISTS items (
     description VARCHAR(255) NOT NULL,
     category VARCHAR(100) NOT NULL,
     unit VARCHAR(20) NOT NULL,
+    sizes JSON NULL,
     min_stock INT UNSIGNED NOT NULL DEFAULT 0,
     ca_number VARCHAR(50) NULL, 
     ca_validity_date DATE NULL, 
@@ -39,9 +35,12 @@ const CREATE_TRANSACTIONS_TABLE_SQL = `
 CREATE TABLE IF NOT EXISTS transactions (
     transaction_id INT AUTO_INCREMENT PRIMARY KEY,
     item_id INT NOT NULL,
+    size VARCHAR(50) NULL,
     type ENUM('Entrada', 'Saída') NOT NULL,
     quantity INT UNSIGNED NOT NULL,
     recipient VARCHAR(255) NULL,
+    purchase_order_id INT NULL,
+    entry_transaction_id INT NULL,
     op_number VARCHAR(50) NULL,
     price DECIMAL(10, 2) NULL,
     transaction_date DATE NOT NULL,
@@ -49,16 +48,17 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );`;
 
+// *** DADOS DE EXEMPLO ATUALIZADOS COM TAMANHOS ***
 const INSERT_ITEMS_SQL = `
-INSERT IGNORE INTO items (description, category, unit, min_stock, ca_number, ca_validity_date) VALUES 
-    ('CAPACETE DE SEGURANÇA BRANCO', 'Capacetes', 'Un', 15, '36163', '2029-01-30'),
-    ('CAPACETE DE SEGURANÇA AZUL', 'Capacetes', 'Un', 10, '35417', '2028-05-10'),
-    ('BOTA DE PVC PRETA', 'Calçados', 'Par', 10, '39248', '2028-12-01'),
-    ('BOTINA DE AMARRAR C/ BICO DE ACO', 'Calçados', 'Par', 10, '41419', '2025-08-01'),
-    ('LUVA DE LÁTEX', 'Luvas', 'Par', 100, '28388', '2026-08-11'),
-    ('LUVA DE RASPA', 'Luvas', 'Par', 20, '15423', '2027-01-01'),
-    ('MÁSCARA DESCARTÁVEL PFF2', 'Proteção Respiratória', 'Un', 200, '41513', '2025-07-25'),
-    ('PROTETOR FACIAL INCOLOR', 'Proteção Facial', 'Un', 5, '15993', '2026-03-15');
+INSERT IGNORE INTO items (id, description, category, unit, sizes, min_stock, ca_number, ca_validity_date) VALUES 
+    (1, 'CAPACETE DE SEGURANÇA BRANCO', 'Capacetes', 'Un', '[]', 15, '36163', '2029-01-30'),
+    (2, 'CAPACETE DE SEGURANÇA AZUL', 'Capacetes', 'Un', '[]', 10, '35417', '2028-05-10'),
+    (3, 'BOTA DE PVC PRETA', 'Calçados', 'Par', '["38", "39", "40", "41", "42"]', 10, '39248', '2028-12-01'),
+    (4, 'BOTINA DE AMARRAR C/ BICO DE ACO', 'Calçados', 'Par', '["39", "40", "41", "42", "43", "44"]', 10, '41419', '2025-08-01'),
+    (5, 'LUVA DE LÁTEX', 'Luvas', 'Par', '["P", "M", "G"]', 100, '28388', '2026-08-11'),
+    (6, 'LUVA DE RASPA', 'Luvas', 'Par', '["M", "G"]', 20, '15423', '2027-01-01'),
+    (7, 'MÁSCARA DESCARTÁVEL PFF2', 'Proteção Respiratória', 'Un', '[]', 200, '41513', '2025-07-25'),
+    (8, 'PROTETOR FACIAL INCOLOR', 'Proteção Facial', 'Un', '[]', 5, '15993', '2026-03-15');
 `;
 
 
@@ -78,11 +78,11 @@ async function initializeDatabase() {
         await connection.query(USE_DATABASE_SQL);
         console.log('✅ Banco de dados selecionado.');
         
-        console.log('\n[3/5] 🛠️  Criando tabela "items"...');
+        console.log('\n[3/5] 🛠️  Criando tabela "items" (com coluna "sizes")...');
         await connection.query(CREATE_ITEMS_TABLE_SQL);
         console.log('✅ Tabela "items" criada com sucesso.');
 
-        console.log('\n[4/5] 🛠️  Criando tabela "transactions"...');
+        console.log('\n[4/5] 🛠️  Criando tabela "transactions" (com coluna "size")...');
         await connection.query(CREATE_TRANSACTIONS_TABLE_SQL);
         console.log('✅ Tabela "transactions" criada com sucesso.');
 
@@ -94,10 +94,9 @@ async function initializeDatabase() {
             console.log('🟡 Nenhum item novo inserido (provavelmente já existiam).');
         }
         
-
     } catch (error) {
-        console.error('\n❌ ERRO DURANTE A INICIALIZAÇÃO:', error);
-        process.exit(1); // Encerra o script com código de erro
+        console.error('\n❌ ERRO DURANTE A INICIALIZAÇÃO:', error.message);
+        process.exit(1);
     } finally {
         if (connection) {
             await connection.end();
@@ -107,6 +106,4 @@ async function initializeDatabase() {
     }
 }
 
-// Inicia a execução da função
 initializeDatabase();
-
