@@ -40,6 +40,7 @@ async function executeQuery(res, sql, params = []) {
 
 // --- ROTAS DA API ---
 
+// As rotas /api/health e /api/stock permanecem as mesmas
 app.get('/api/health', async (req, res) => {
     try {
         const connection = await mysql.createConnection(dbConfig);
@@ -51,19 +52,13 @@ app.get('/api/health', async (req, res) => {
     }
 });
 
-// *** ROTA DE STOCK CORRIGIDA ***
 app.get('/api/stock', async (req, res) => {
     const items = await executeQuery(res, 'SELECT * FROM items ORDER BY description ASC');
     if (!items) return;
     
-    // Converte a string JSON de tamanhos para um array
     items.forEach(item => {
         if (item.sizes && typeof item.sizes === 'string') {
-            try {
-                item.sizes = JSON.parse(item.sizes);
-            } catch (e) {
-                item.sizes = [];
-            }
+            try { item.sizes = JSON.parse(item.sizes); } catch (e) { item.sizes = []; }
         } else if (!item.sizes) {
             item.sizes = [];
         }
@@ -77,7 +72,6 @@ app.get('/api/stock', async (req, res) => {
         const totalIn = itemTransactions.filter(t => t.type === 'Entrada').reduce((sum, t) => sum + t.quantity, 0);
         const totalOut = itemTransactions.filter(t => t.type === 'Saída').reduce((sum, t) => sum + t.quantity, 0);
         
-        // *** LÓGICA DE CÁLCULO DE STOCK POR TAMANHO CORRIGIDA ***
         const stockBySize = {};
         if (item.sizes.length > 0) {
             item.sizes.forEach(size => {
@@ -105,7 +99,6 @@ app.get('/api/stock', async (req, res) => {
     res.json(stock);
 });
 
-// Rota para obter as entradas disponíveis para um item (necessária para o formulário de saída)
 app.get('/api/stock-entries/:itemId', async (req, res) => {
     const { itemId } = req.params;
     const sql = `
@@ -130,9 +123,7 @@ app.get('/api/stock-entries/:itemId', async (req, res) => {
     }
 });
 
-
-// ... (O resto do ficheiro server.js permanece o mesmo) ...
-// Rota para o Dashboard Financeiro.
+// A rota /api/financial-summary não necessita de alterações para esta funcionalidade.
 app.get('/api/financial-summary', async (req, res) => {
     const { dateStart, dateEnd, op } = req.query;
 
@@ -236,17 +227,20 @@ app.put('/api/items/:id', async (req, res) => {
     if (result) res.status(200).json({ message: 'Item atualizado' }); 
 });
 
+// *** ROTA DE CRIAÇÃO DE TRANSAÇÃO ATUALIZADA ***
 app.post('/api/transactions', async (req, res) => { 
+    // O preço para uma "Saída" virá do frontend, mas a lógica para herdá-lo está abaixo.
     let { item_id, type, quantity, recipient, op_number, transaction_date, price, purchase_order_id, entry_transaction_id, size } = req.body;
     
     if (type === 'Saída') {
-        const [entry] = await executeQuery(res, 'SELECT purchase_order_id FROM transactions WHERE transaction_id = ?', [entry_transaction_id]);
+        // Busca o pedido E o preço da transação de entrada original.
+        const [entry] = await executeQuery(res, 'SELECT purchase_order_id, price FROM transactions WHERE transaction_id = ?', [entry_transaction_id]);
         if (!entry) return res.status(400).json({ error: 'Transação de entrada original não encontrada.' });
         
         purchase_order_id = entry.purchase_order_id;
+        price = entry.price; // O preço da saída é o preço de custo da entrada.
         recipient = null;
-        price = null;
-    } else {
+    } else { // Entrada
         op_number = null;
         entry_transaction_id = null;
     }
@@ -258,9 +252,27 @@ app.post('/api/transactions', async (req, res) => {
     if (result) res.status(201).json({ message: 'Movimentação adicionada' }); 
 });
 
+// *** ROTA DE RELATÓRIO ATUALIZADA ***
 app.get('/api/report', async (req, res) => {
     const { dateStart, dateEnd, type, op, purchase_order_id } = req.query;
-    let sql = `SELECT t.transaction_date as "Data", t.type as "Tipo", t.purchase_order_id as "Pedido", i.description as "Descrição do Item", i.category as "Categoria", t.size as "Tamanho", t.quantity as "Quantidade", t.op_number as "Ordem de Produção (OP)", t.recipient as "Fornecedor", t.price as "Preço Unitário (R$)" FROM transactions t JOIN items i ON t.item_id = i.id WHERE 1=1`;
+    // A consulta agora calcula o Total (Preço * Quantidade)
+    let sql = `
+        SELECT 
+            t.transaction_date as "Data", 
+            t.type as "Tipo", 
+            t.purchase_order_id as "Pedido", 
+            i.description as "Descrição do Item", 
+            i.category as "Categoria", 
+            t.size as "Tamanho", 
+            t.quantity as "Quantidade", 
+            t.op_number as "Ordem de Produção (OP)", 
+            t.recipient as "Fornecedor", 
+            t.price as "Preço Unitário (R$)",
+            (t.quantity * t.price) as "Total (R$)"
+        FROM transactions t 
+        JOIN items i ON t.item_id = i.id 
+        WHERE 1=1`;
+        
     const params = [];
 
     if (dateStart) { sql += ` AND t.transaction_date >= ?`; params.push(dateStart); }
@@ -298,4 +310,3 @@ async function startServer() {
 }
 
 startServer();
-
