@@ -48,18 +48,6 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT ON UPDATE CASCADE
 );`;
 
-// *** DADOS DE EXEMPLO ATUALIZADOS COM TAMANHOS ***
-const INSERT_ITEMS_SQL = `
-INSERT IGNORE INTO items (id, description, category, unit, sizes, min_stock, ca_number, ca_validity_date) VALUES 
-    (1, 'CAPACETE DE SEGURANÇA BRANCO', 'Capacetes', 'Un', '[]', 15, '36163', '2029-01-30'),
-    (2, 'CAPACETE DE SEGURANÇA AZUL', 'Capacetes', 'Un', '[]', 10, '35417', '2028-05-10'),
-    (3, 'BOTA DE PVC PRETA', 'Calçados', 'Par', '["38", "39", "40", "41", "42"]', 10, '39248', '2028-12-01'),
-    (4, 'BOTINA DE AMARRAR C/ BICO DE ACO', 'Calçados', 'Par', '["39", "40", "41", "42", "43", "44"]', 10, '41419', '2025-08-01'),
-    (5, 'LUVA DE LÁTEX', 'Luvas', 'Par', '["P", "M", "G"]', 100, '28388', '2026-08-11'),
-    (6, 'LUVA DE RASPA', 'Luvas', 'Par', '["M", "G"]', 20, '15423', '2027-01-01'),
-    (7, 'MÁSCARA DESCARTÁVEL PFF2', 'Proteção Respiratória', 'Un', '[]', 200, '41513', '2025-07-25'),
-    (8, 'PROTETOR FACIAL INCOLOR', 'Proteção Facial', 'Un', '[]', 5, '15993', '2026-03-15');
-`;
 
 
 // --- Função Principal de Execução ---
@@ -70,29 +58,21 @@ async function initializeDatabase() {
         connection = await mysql.createConnection(dbConfig);
         console.log('✅ Conexão bem-sucedida!');
 
-        console.log('\n[1/5] 🏗️  Criando banco de dados (se não existir)...');
+        console.log('\n[1/4] 🏗️  Criando banco de dados (se não existir)...');
         await connection.query(CREATE_DATABASE_SQL);
         console.log('✅ Banco de dados "epi_stock_control" garantido.');
 
-        console.log('\n[2/5] 🔄 Selecionando o banco de dados...');
+        console.log('\n[2/4] 🔄 Selecionando o banco de dados...');
         await connection.query(USE_DATABASE_SQL);
         console.log('✅ Banco de dados selecionado.');
         
-        console.log('\n[3/5] 🛠️  Criando tabela "items" (com coluna "sizes")...');
+        console.log('\n[3/4] 🛠️  Criando tabela "items" (com coluna "sizes")...');
         await connection.query(CREATE_ITEMS_TABLE_SQL);
         console.log('✅ Tabela "items" criada com sucesso.');
 
-        console.log('\n[4/5] 🛠️  Criando tabela "transactions" (com coluna "size")...');
+        console.log('\n[4/4] 🛠️  Criando tabela "transactions" (com coluna "size")...');
         await connection.query(CREATE_TRANSACTIONS_TABLE_SQL);
         console.log('✅ Tabela "transactions" criada com sucesso.');
-
-        console.log('\n[5/5] 📝 Inserindo dados de exemplo...');
-        const [result] = await connection.query(INSERT_ITEMS_SQL);
-        if (result.affectedRows > 0) {
-            console.log(`✅ ${result.affectedRows} itens de exemplo inseridos.`);
-        } else {
-            console.log('🟡 Nenhum item novo inserido (provavelmente já existiam).');
-        }
         
     } catch (error) {
         console.error('\n❌ ERRO DURANTE A INICIALIZAÇÃO:', error.message);
