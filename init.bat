@@ -1,0 +1,6 @@
+@echo off
+echo Iniciando o backend...
+start "Backend" /D "back_end" cmd /c initBackEnd.bat
+
+echo Iniciando o frontend...
+start "Frontend" /D "front_end" cmd /c initFrontEnd.bat
