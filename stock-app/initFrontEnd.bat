@@ -1,8 +1,9 @@
 @echo off
-title Frontend
-echo [Frontend] Instalando dependencias...
+title Frontend - EPI Stock
+
+echo Instalando dependencias do Front-end (npm install)...
 call npm install
 
 echo.
-echo [Frontend] Iniciando o servidor...
-call npm start
+echo Iniciando o servidor de desenvolvimento do Front-end (npm run dev)...
+call npm run dev

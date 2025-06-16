@@ -1,6 +1,16 @@
 @echo off
-echo Iniciando o backend...
-start "Backend" /D "back_end" cmd /c initBackEnd.bat
+echo ==================================
+echo    INICIANDO PROJETO EPI-STOCK
+echo ==================================
 
-echo Iniciando o frontend...
-start "Frontend" /D "front_end" cmd /c initFrontEnd.bat
+echo.
+echo [1/2] Iniciando o Back-end (API)...
+start "Backend" /D "back-end" initBackEnd.bat
+
+echo.
+echo [2/2] Iniciando o Front-end (React App)...
+start "Frontend" /D "stock-app" initFrontEnd.bat
+
+echo.
+echo Scripts de inicializacao foram chamados.
+echo Duas novas janelas (Backend e Frontend) devem ter sido abertas.
